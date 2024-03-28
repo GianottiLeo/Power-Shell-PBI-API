@@ -1,4 +1,4 @@
-## Global Parameters
+## Global Parameters Declaration
 
 $ErrorActionPreference = "Stop"
 [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.SecurityProtocolType]::Tls12
@@ -8,10 +8,10 @@ $apiUrl = "https://api.powerbi.com/v1.0/myorg"
 ## Authentication Process
 
 $username = "Global Account User"
-$password = Get-Content -Path "Path to password in the cloud" | ConvertTo-SecureString -AsPlainText -Force
+$password = Get-Content -Path "Path to password" | ConvertTo-SecureString -AsPlainText -Force
 $cred = New-Object System.Management.Automation.PSCredential($username, $password)
 
-## PBI Connection
+## PBI Service Connection
 
 Connect-PowerBIServiceAccount -Credential $cred | Out-Null
 #Connect-PowerBIServiceAccount
@@ -21,7 +21,7 @@ $response = Invoke-WebRequest -Uri "$publicEndpoint/metadata/cluster" -Headers @
 #$workspaceData = $response.Content | ConvertFrom-Json
 $accessToken = $response.access_token
 
-## API setup
+## API URL setup
 
 function GetApiUrl() {
     $response = Invoke-WebRequest -Uri "$publicEndpoint/metadata/cluster" -Headers @{ "Authorization"=$token }
@@ -40,56 +40,33 @@ $scorecardparameters = New-Object -TypeName System.Collections.Generic.List[Obje
 
 ## Scorecards Info
 
-# Scorecards General Links
+# Scorecards Links Extraction
 
 $URLaux = $API + "v1.0/myorg/groups/$workspaceId/scorecards"
 $scorecardinvoke = Invoke-RestMethod -Method Get -Uri $URLaux -Headers @{ "Authorization"=$token }
 $scorecardinvoke.value | Export-CSV -Path "Path to IDs CSV file" -Force -notypeinformation
 $values = Import-Csv -Path "Path to IDs CSV file" | Select-Object -ExpandProperty Id
 
-# Scorecards Table Setup
-
-$URLaux = $API + "v1.0/myorg/groups/$workspaceId/scorecards($($values[0]))"
-$scorecardinvoke = Invoke-RestMethod -Method Get -Uri $URLaux -Headers @{ "Authorization"=$token }
-#$scorecardinvoke
-$scorecardparameters.Add($scorecardinvoke)
-$scorecardparameters[0] | Export-CSV -Path "Path to Scorecard CSV file" -Force -notypeinformation
-
 # Scorecards Table Construction
 
-while ($i -le $values.Count) {
-
-    $URL2 = $API + "v1.0/myorg/groups/$workspaceId/scorecards/$($values[$i])"
+foreach ($value in $values) {
+    $URL2 = $API + "v1.0/myorg/groups/$workspaceId/scorecards/$value"
     $scorecardinvoke = Invoke-RestMethod -Method Get -Uri $URL2 -Headers @{ "Authorization"=$token } 
     $scorecardparameters.Add($scorecardinvoke)
     #$scorecardparameters
-    $scorecardparameters[$i] | Export-CSV -Path "Path to CSV file to store all informartion regarding scorecards" -Append -Force -notypeinformation
-    $i++
+    $scorecardparameters[$i] | Export-CSV -Path "Path to CSV file to store all information regarding scorecards" -Append -Force -notypeinformation
 }
 
 ## Goals Info 
 
-# Goals Table Setup
+# Goals Table Construction # Adding /goals to the URL we get detailed information of each card in the Goals with the $value link
 
-$URLaux2 = $API + "v1.0/myorg/groups/$workspaceId/scorecards($($values[0]))/goals"
-$scorecardinvoke = Invoke-RestMethod -Method Get -Uri $URLaux2 -Headers @{ "Authorization"=$token } 
-#$scorecardinvoke.value.Count
-$scorecardparameters = New-Object -TypeName System.Collections.Generic.List[Object]
-$scorecardparameters.Add($scorecardinvoke.value)
-$scorecardparameters[0] | Export-CSV -Path "Path to CSV file to store all informartion regarding goals" -Force -notypeinformation
-
-# Goals Table Construction
-
-$i = 1
-$aux = $values.Count - 1
-while ($i -le $aux) {
-
-    $URL3 = $API + "v1.0/myorg/groups/$workspaceId/scorecards($($values[$i]))/goals"
-    $scorecardinvoke = Invoke-RestMethod -Method Get -Uri $URL3 -Headers @{ "Authorization"=$token } 
-    $scorecardparameters.Add($scorecardinvoke.value)
-    #$scorecardparameters
-    $scorecardparameters[$i] | Export-CSV -Path "Path to Goals CSV file" -Append -Force -notypeinformation
-    $i++
+foreach ($value in $values) {
+    $URL2 = $API + "v1.0/myorg/groups/$workspaceId/scorecards($($values[$i]))/goals"
+    $goalInvoke = Invoke-RestMethod -Method Get -Uri $URL2 -Headers @{ "Authorization"=$token } 
+    $goalParameters.Add($goalInvoke)
+    #$goalParameters
+    $goalParameters[$i] | Export-CSV -Path "Path to CSV file to store all information regarding goals" -Append -Force -notypeinformation
 }
 
 ### Report Connections Workspaces Scans General
